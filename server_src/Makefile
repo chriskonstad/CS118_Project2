@@ -1,6 +1,5 @@
 EXECUTABLE=server
 
-.PHONY: all
 $(EXECUTABLE):
 	touch ../$(EXECUTABLE)
 
