@@ -1,8 +1,8 @@
-EXECUTABLE=client
+EXECUTABLE=../client
 
 $(EXECUTABLE):
-	touch ../$(EXECUTABLE)
+	touch $(EXECUTABLE)
 
 .PHONY: clean
 clean:
-	rm ../$(EXECUTABLE)
+	rm $(EXECUTABLE)

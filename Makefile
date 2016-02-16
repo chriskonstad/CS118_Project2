@@ -15,7 +15,8 @@ $(CLIENT):
 $(SERVER):
 	cd server_src && make
 
+# Ignore make clean errors in subdirs
 .PHONY: clean
 clean:
-	cd client_src && make clean
-	cd server_src && make clean
+	cd client_src && make -i clean
+	cd server_src && make -i clean
