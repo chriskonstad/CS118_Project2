@@ -44,13 +44,13 @@ PACKET LAYOUT:
 2. Client send ACK
 3. ....
 4. if client doesn't send ACK, server can resend TRN
-5 .....
+5. .....
 6. Server send FIN
 7. Client send FINACK
 
 
 # Library functions to write
 ```c
-sendBytes(...)  // send a stream with TRN
-recvBytes(...)  // receive a TRN stream
+sendBytes(...);  // send a stream with TRN
+recvBytes(...);  // receive a TRN stream
 ```
