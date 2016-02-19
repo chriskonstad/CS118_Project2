@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include "packet.h"
 
@@ -6,37 +8,67 @@
  * as example code.
  */
 
+bool comparePackets(Packet *a, Packet *b) {
+  if(a->isAck != b->isAck) return false;
+  if(a->isFin != b->isFin) return false;
+  if(a->seq != b->seq) return false;
+  if(a->length != b->length) return false;
+
+  for(size_t i=0; i<a->length; i++) {
+    if(a->data[i] != b->data[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void pretendSend(Packet *p) {
+  uint8_t *buffer;
+  size_t length = serializePacket(p, &buffer);
+
+  Packet rec;
+  parsePacket(buffer, length, &rec);
+  printf("\nSent:\n");
+  printPacket(p);
+  printf("Received:\n");
+  printPacket(p);
+  printf("\n");
+
+  // Fail the test if the packets are different after being serialized
+  assert(comparePackets(p, &rec));
+
+  freePacket(&rec);
+  free(buffer);
+}
+
 int main()
 {
-  // Build test packet to pretend to send
+  // TEST PACKET TYPES
+  // TRN
   char *testData = "hello world!";
-  Packet send;
-  send.ack = 118;
-  send.seq = 229;
-  send.data = (uint8_t*)testData;
-  send.length = 13;
+  Packet trn;
+  trn.isAck = false;
+  trn.isFin = false;
+  trn.seq = 118;
+  trn.data = (uint8_t*)testData;
+  trn.length = 13;
+  // Don't need to free 'trn' packet because the data wasn't malloc'd
+  // However, usually will need to free it
 
-  printf("SENDING:\n");
-  printPacket(&send);
+  pretendSend(&trn);
+  // ACK
+  Packet ack = makeAck(118);
+  pretendSend(&ack);
+  freePacket(&ack);
 
-  // Serialize the packet
-  uint8_t *udp; // must free later
-  size_t udpLength = serializePacket(&send, &udp);
+  // FIN
+  Packet fin = makeFin();
+  pretendSend(&fin);
+  freePacket(&fin);
 
-  printf("\nSerialized packet (%zu bytes):\n", udpLength);
-  for(size_t i=0; i<udpLength; i++) {
-    printf("0x%02x ", udp[i]);
-  }
-  printf("\n\n");
-
-  // Pretend to receive the packet
-  printf("RECEIVING:\n");
-  Packet rec; // must free later
-  parsePacket(udp, udpLength, &rec);
-  printPacket(&rec);
-
-  // Clean up
-  // Don't need to free 'send' packet because the data wasn't malloc'd
-  freePacket(&rec);
-  free(udp);
+  // FINACK
+  Packet finAck = makeFinAck();
+  pretendSend(&finAck);
+  freePacket(&finAck);
 }

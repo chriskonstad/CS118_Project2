@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,15 +14,49 @@
  * The helper functions can be used to send and receive packets as byte arrays.
  */
 
-const int MAX_PACKET_SIZE = 1024;
-const int PACKET_HEADER_LENGTH = 8;  // two 4 byte values, adjust as needed
+const int MAX_PACKET_SIZE = 1024;    // number of bytes
+const int PACKET_HEADER_LENGTH = 5;  // number of bytes
+
+const int FLAG_ACK = 1 << 7;
+const int FLAG_FIN = 1 << 6;
 
 typedef struct Packet {
+  bool isAck;     // ack flag
+  bool isFin;     // fin flag
   uint32_t seq;   // seq number
-  uint32_t ack;   // ack number
   uint8_t *data;  // byte array received from socket, excluding header
   size_t length;  // length of data section
 } Packet;
+
+Packet makeAck(uint32_t seq) {
+  Packet p;
+  p.isAck = true;
+  p.isFin = false;
+  p.seq = seq;
+  p.data = NULL;
+  p.length = 0;
+  return p;
+}
+
+Packet makeFin() {
+  Packet p;
+  p.isAck = false;
+  p.isFin = true;
+  p.seq = 0;
+  p.data = NULL;
+  p.length = 0;
+  return p;
+}
+
+Packet makeFinAck() {
+  Packet p;
+  p.isAck = true;
+  p.isFin = true;
+  p.seq = 0;
+  p.data = NULL;
+  p.length = 0;
+  return p;
+}
 
 /**
  * Read a byte array (a serialized packet) into a packet.
@@ -30,16 +65,22 @@ typedef struct Packet {
  * The passed in data array is freed.
  */
 void parsePacket(const uint8_t *const data, size_t length, Packet *packet) {
-  // Parse data
-  const uint32_t *dataAs32Bit = (uint32_t *)data;
+  // Parse flags
+  const uint8_t flags = data[0];
+  packet->isAck = flags & FLAG_ACK;
+  packet->isFin = flags & FLAG_FIN;
+
+  // Parse sequence number
+  const uint32_t *dataAs32Bit = (uint32_t *)(&data[1]);
   packet->seq = ntohl(dataAs32Bit[0]);
-  packet->ack = ntohl(dataAs32Bit[1]);
+
+  // Parse data
   packet->length = length - PACKET_HEADER_LENGTH;
 
   // Have the packet have its own copy of the data
   packet->data = (uint8_t *)malloc(packet->length * sizeof(uint8_t));
   assert(packet->data);
-  memcpy(packet->data, (uint8_t *)&dataAs32Bit[2], packet->length);
+  memcpy(packet->data, (uint8_t *)&dataAs32Bit[1], packet->length);
 }
 
 /**
@@ -56,9 +97,19 @@ size_t serializePacket(const Packet *const packet, uint8_t **buffer) {
   assert(data);
 
   // Setup the header
-  uint32_t *dataAs32Bit = (uint32_t *)data;
+  // Create flags
+  uint8_t flags = 0;
+  if (packet->isAck) {
+    flags |= FLAG_ACK;
+  }
+  if (packet->isFin) {
+    flags |= FLAG_FIN;
+  }
+  data[0] = flags;
+
+  // Setup the sequence number
+  uint32_t *dataAs32Bit = (uint32_t *)(&data[1]);
   dataAs32Bit[0] = htonl(packet->seq);
-  dataAs32Bit[1] = htonl(packet->ack);
 
   // Copy over the packet data
   memcpy(&data[PACKET_HEADER_LENGTH], packet->data, packet->length);
@@ -72,8 +123,8 @@ size_t serializePacket(const Packet *const packet, uint8_t **buffer) {
  */
 void printPacket(const Packet *const p) {
   printf("Packet:\n");
-  printf("\tACK: %d\n\tSEQ: %d\n\tDATA (%zu bytes):", p->ack, p->seq,
-         p->length);
+  printf("\tFLAG_ACK: %d\n\tFLAG_FIN: %d\n\tSEQ: %d\n\tDATA (%zu bytes):",
+         p->isAck, p->isFin, p->seq, p->length);
   for (size_t i = 0; i < p->length; i++) {
     printf(" 0x%02x", p->data[i]);
   }
