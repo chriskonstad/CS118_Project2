@@ -74,6 +74,7 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
 
       // Send ACK
       Packet ack = makeAck(rec.seq);
+      freePacket(&rec); // only need to free TRN packets
       sendPacket(&ack, sockfd, fromAddress, *fromAddressLen);
     } else if (!rec.isAck && rec.isFin) {
       // Send FINACK
