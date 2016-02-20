@@ -1,8 +1,16 @@
+CC=gcc
 EXECUTABLE=../client
+SOURCES=client.c
+LIBRARY=../lib/librdtp.a
 
-$(EXECUTABLE):
-	touch $(EXECUTABLE)
+$(EXECUTABLE): $(SOURCES) $(LIBRARY)
+	$(CC) $^ -o $@
+
+.PHONY: $(LIBRARY)
+$(LIBRARY):
+	cd ../lib && make
 
 .PHONY: clean
 clean:
 	rm $(EXECUTABLE)
+	cd ../lib && make -i clean

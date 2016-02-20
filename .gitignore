@@ -2,3 +2,5 @@
 server
 client
 lib/test
+*.o
+*.a

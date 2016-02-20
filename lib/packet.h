@@ -28,6 +28,17 @@ typedef struct Packet {
   size_t length;  // length of data section
 } Packet;
 
+// Caller must set data and length fields
+Packet makeTrn(uint32_t seq) {
+  Packet p;
+  p.isAck = false;
+  p.isFin = false;
+  p.seq = seq;
+  p.data = NULL;
+  p.length = 0;
+  return p;
+}
+
 Packet makeAck(uint32_t seq) {
   Packet p;
   p.isAck = true;
