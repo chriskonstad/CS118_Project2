@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
   freeaddrinfo(servinfo);
 
-  printf("talker: sent %d bytes to %s\n", numbytes, argv[1]);
+//  printf("talker: sent %d bytes to %s\n", numbytes, argv[1]);
   close(sockfd);
 
   return 0;
