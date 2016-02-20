@@ -1,6 +1,6 @@
 RDTP_A=librdtp.a
 RDTP_O=librdtp.o
-RDTP_SOURCES=rdtp.c rdtp.h
+RDTP_SOURCES=rdtp.c rdtp.h packet.h
 
 BUFFER_O=libbuffer.o
 BUFFER_SOURCES=buffer.c buffer.h
