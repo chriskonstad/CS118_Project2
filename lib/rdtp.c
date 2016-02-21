@@ -79,6 +79,7 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
     // Handle different packet types
     if (!rec.isAck && !rec.isFin) {
       // Copy packet data into recBytes
+      if(rec.seq == recBytes.length) {
         recBytes.data =
             (uint8_t *)realloc(recBytes.data, recBytes.length + rec.length);
         assert(recBytes.data);
@@ -157,7 +158,7 @@ void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
     sendPacket(&packets[i], sockfd, destAddr, destLen);
 
     // Handle ACK
-    Packet rec = receivePacket(sockfd, NULL, NULL);
+    Packet rec = receivePacket(sockfd, NULL, NULL, &corrupted, config);
     assert(rec.isAck);  // TODO replace with real error handling
   }
 
@@ -166,7 +167,7 @@ void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
   sendPacket(&fin, sockfd, destAddr, destLen);
 
   // Handle FINACK
-  Packet finAck = receivePacket(sockfd, NULL, NULL);
+  Packet finAck = receivePacket(sockfd, NULL, NULL, &corrupted, config);
   assert(finAck.isAck);  // TODO replace with real error handling
   assert(finAck.isFin);  // TODO replace with real error handling
 }
