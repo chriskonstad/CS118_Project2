@@ -1,11 +1,21 @@
 #include "rdtp.h"
 
 #include <assert.h>
+#include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 
 #include "packet.h"
+
+const int TIMEOUT_SEC = 0;
+const int TIMEOUT_USEC = 100;
+const int MAX_FIN_ATTEMPT = 5;
+
+typedef enum { OK, CORRUPTED, TIMEDOUT } STATUS;
 
 /**
  * Send a singular packet of any type
@@ -33,25 +43,42 @@ void sendPacket(Packet *p, int sockfd, const struct sockaddr *destAddr,
  * Receive a singular packet of any type
  */
 Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
-                     socklen_t *fromAddressLen, bool *corrupted,
+                     socklen_t *fromAddressLen, STATUS *status,
                      Config config) {
+  *status = OK;
   uint8_t buffer[MAX_PACKET_SIZE];
 
-  ssize_t bytesRec =
-      recvfrom(sockfd, buffer, MAX_PACKET_SIZE, 0, fromAddress, fromAddressLen);
-  assert(-1 != bytesRec);  // TODO replace with proper error handling later
+  // Enable timeout
+  struct timeval tv;
+  tv.tv_sec = TIMEOUT_SEC;  // 3 second timeout
+  tv.tv_usec = TIMEOUT_USEC;
+  fd_set sockets;
+  FD_ZERO(&sockets);
+  FD_SET(sockfd, &sockets);
 
-  // Parse out the packet
   Packet ret;
-  parsePacket(buffer, bytesRec, &ret);
+  if (select(sockfd + 1, &sockets, NULL, NULL, &tv)) {
+    ssize_t bytesRec = recvfrom(sockfd, buffer, MAX_PACKET_SIZE, 0, fromAddress,
+                                fromAddressLen);
+    assert(-1 != bytesRec);  // TODO replace with proper error handling later
+    // Parse out the packet
+    parsePacket(buffer, bytesRec, &ret);
 
-  // Print packet for debugging
-  printPacket(&ret);
-
-  int r = (rand() % 100) + 1; // [1,100]
-  *corrupted = !(ret.isAck && ret.isFin) && r <= (config.pC * 100);
-  if(*corrupted) {
-    printf("\x1B[31m" "\t(CORRUPTED)\n" "\x1B[0m");
+    // Print packet for debugging
+    printPacket(&ret);
+    // Check if corrupted
+    int r = (rand() % 100) + 1; // [1,100]
+    *status = r <= (config.pC * 100) ? OK : CORRUPTED;
+    if(*status == CORRUPTED) {
+      printf("\x1B[31m" "\t(CORRUPTED)\n" "\x1B[0m");
+    }
+  } else {
+    // Timed out
+    *status = TIMEDOUT;
+    printf(
+        "\x1B[31m"
+        "\t(TIMED OUT)\n"
+        "\x1B[0m");
   }
 
   return ret;
@@ -68,12 +95,13 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
   recBytes.length = 0;
 
   while (1) {
-    bool corrupted;
+    STATUS status;
     Packet rec =
-        receivePacket(sockfd, fromAddress, fromAddressLen, &corrupted, config);
+        receivePacket(sockfd, fromAddress, fromAddressLen, &status, config);
 
-    if(corrupted) {
-      // TODO
+    // Ignore corrupted packets
+    if(status != OK) {
+      continue;
     }
 
     // Handle different packet types
@@ -98,6 +126,8 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
       sendPacket(&finAck, sockfd, fromAddress, *fromAddressLen);
       break;
       // TODO Handle rest of the ending handshake
+      // TODO There is a bug where the fin is not received, causing this to
+      //      loop forever. Fix!  Do the two way fin-finack handshake like TCP
     }
 
     // TODO Handle rest of the packet types
@@ -150,24 +180,29 @@ void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
   // Packetize the data
   Packet *packets;
   int numPackets = packetize(buf, &packets);
-  bool corrupted;
+  STATUS status;
 
   for (int i = 0; i < numPackets; i++) {
-    // TODO Add proper error handling, resending, etc.
-    // Send packet
-    sendPacket(&packets[i], sockfd, destAddr, destLen);
+    Packet rec;
+    do {
+      // Send packet
+      sendPacket(&packets[i], sockfd, destAddr, destLen);
 
-    // Handle ACK
-    Packet rec = receivePacket(sockfd, NULL, NULL, &corrupted, config);
+      // Handle ACK
+      rec = receivePacket(sockfd, NULL, NULL, &status, config);
+    } while (status != OK);
     assert(rec.isAck);  // TODO replace with real error handling
   }
 
   // Send FIN
-  Packet fin = makeFin();
-  sendPacket(&fin, sockfd, destAddr, destLen);
+  Packet finAck;
+  int attempts = 0;
+  do {
+    attempts++;
+    Packet fin = makeFin();
+    sendPacket(&fin, sockfd, destAddr, destLen);
 
-  // Handle FINACK
-  Packet finAck = receivePacket(sockfd, NULL, NULL, &corrupted, config);
-  assert(finAck.isAck);  // TODO replace with real error handling
-  assert(finAck.isFin);  // TODO replace with real error handling
+    // Handle FINACK
+    finAck = receivePacket(sockfd, NULL, NULL, &status, config);
+  } while(status != OK && attempts < MAX_FIN_ATTEMPT);
 }
