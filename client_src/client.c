@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -19,6 +20,8 @@ int main(int argc, char *argv[])
   struct addrinfo hints, *servinfo, *p;
   int rv;
   int numbytes;
+
+  srand(time(NULL));
 
   if (argc != 3) {
     fprintf(stderr,"usage: talker hostname message\n");
@@ -50,24 +53,17 @@ int main(int argc, char *argv[])
     return 2;
   }
 
-  // TODO REPLACE
-  /*
-  if ((numbytes = sendto(sockfd, argv[2], strlen(argv[2]), 0,
-          p->ai_addr, p->ai_addrlen)) == -1) {
-    perror("talker: sendto");
-    exit(1);
-  }
-  */
+  Config config;
+  config.pC = 0.5;  // 50% chance of corruption
 
   Buffer buffer;
   buffer.data = (uint8_t*)argv[2];
   buffer.length = strlen(argv[2]);
-  sendBytes(buffer, sockfd, p->ai_addr, p->ai_addrlen);
+  sendBytes(buffer, sockfd, p->ai_addr, p->ai_addrlen, config);
 
 
   freeaddrinfo(servinfo);
 
-//  printf("talker: sent %d bytes to %s\n", numbytes, argv[1]);
   close(sockfd);
 
   return 0;

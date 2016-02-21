@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -35,6 +36,8 @@ int main(void)
   char buf[MAXBUFLEN];
   socklen_t addr_len;
   char s[INET6_ADDRSTRLEN];
+
+  srand(time(NULL));
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC; // set to AF_INET to force IPv4
@@ -73,25 +76,13 @@ int main(void)
   printf("listener: waiting to recvfrom...\n");
 
   addr_len = sizeof their_addr;
-  /*
-  if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
-          (struct sockaddr *)&their_addr, &addr_len)) == -1) {
-    perror("recvfrom");
-    exit(1);
-  }
-  */
 
-  Buffer rec = receiveBytes(sockfd, (struct sockaddr *)&their_addr, &addr_len);
+  Config config;
+  config.pC = 0.5;  // 50% chance of corruption
 
-  /*
-  printf("listener: got packet from %s\n",
-      inet_ntop(their_addr.ss_family,
-        get_in_addr((struct sockaddr *)&their_addr),
-        s, sizeof s));
-  printf("listener: packet is %d bytes long\n", numbytes);
-  buf[numbytes] = '\0';
-  printf("listener: packet contains \"%s\"\n", buf);
-  */
+  Buffer rec =
+      receiveBytes(sockfd, (struct sockaddr *)&their_addr, &addr_len, config);
+  printf("Received %zu bytes", rec.length);
 
   close(sockfd);
 

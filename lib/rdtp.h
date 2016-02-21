@@ -6,6 +6,15 @@
 #include "buffer.h"
 
 /**
+ * Configuration struct for tweaking the parameters of RDTP
+ */
+typedef struct Config {
+  double pC;
+  double pL;
+  int windowSize;
+} Config;
+
+/**
  * recvfrom
  * NEED:
  * sockfd
@@ -16,9 +25,9 @@
  * socklen_t address_len,
  */
 Buffer receiveBytes(int sockfd, struct sockaddr *restrict fromAddress,
-                    socklen_t *restrict fromAddressLen);
+                    socklen_t *restrict fromAddressLen, Config config);
 
 void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
-               socklen_t destLen);
+               socklen_t destLen, Config config);
 
 #endif  // LIB_RDTP

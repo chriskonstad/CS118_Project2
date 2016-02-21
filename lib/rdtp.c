@@ -33,7 +33,8 @@ void sendPacket(Packet *p, int sockfd, const struct sockaddr *destAddr,
  * Receive a singular packet of any type
  */
 Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
-                     socklen_t *fromAddressLen) {
+                     socklen_t *fromAddressLen, bool *corrupted,
+                     Config config) {
   uint8_t buffer[MAX_PACKET_SIZE];
 
   ssize_t bytesRec =
@@ -47,6 +48,12 @@ Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
   // Print packet for debugging
   printPacket(&ret);
 
+  int r = (rand() % 100) + 1; // [1,100]
+  *corrupted = !(ret.isAck && ret.isFin) && r <= (config.pC * 100);
+  if(*corrupted) {
+    printf("\x1B[31m" "\t(CORRUPTED)\n" "\x1B[0m");
+  }
+
   return ret;
 }
 
@@ -54,27 +61,35 @@ Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
  * Receive a byte array
  */
 Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
-                    socklen_t *fromAddressLen) {
+                    socklen_t *fromAddressLen, Config config) {
   // TODO also check packet flags to ensure it's a TRN packet
   Buffer recBytes;
   recBytes.data = NULL;
   recBytes.length = 0;
 
   while (1) {
-    Packet rec = receivePacket(sockfd, fromAddress, fromAddressLen);
+    bool corrupted;
+    Packet rec =
+        receivePacket(sockfd, fromAddress, fromAddressLen, &corrupted, config);
+
+    if(corrupted) {
+      // TODO
+    }
 
     // Handle different packet types
     if (!rec.isAck && !rec.isFin) {
       // Copy packet data into recBytes
-      recBytes.data =
-          (uint8_t *)realloc(recBytes.data, recBytes.length + rec.length);
-      assert(recBytes.data);
-      memcpy(&recBytes.data[recBytes.length], rec.data, rec.length);
-      recBytes.length += rec.length;
+        recBytes.data =
+            (uint8_t *)realloc(recBytes.data, recBytes.length + rec.length);
+        assert(recBytes.data);
+        memcpy(&recBytes.data[recBytes.length], rec.data, rec.length);
+        recBytes.length += rec.length;
+      }
 
       // Send ACK
       Packet ack = makeAck(rec.seq);
       freePacket(&rec); // only need to free TRN packets
+
       sendPacket(&ack, sockfd, fromAddress, *fromAddressLen);
     } else if (!rec.isAck && rec.isFin) {
       // Send FINACK
@@ -83,6 +98,7 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
       break;
       // TODO Handle rest of the ending handshake
     }
+
     // TODO Handle rest of the packet types
   }
 
@@ -129,10 +145,11 @@ int packetize(Buffer buf, Packet **packets) {
  * Send a byte array
  */
 void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
-               socklen_t destLen) {
+               socklen_t destLen, Config config) {
   // Packetize the data
   Packet *packets;
   int numPackets = packetize(buf, &packets);
+  bool corrupted;
 
   for (int i = 0; i < numPackets; i++) {
     // TODO Add proper error handling, resending, etc.
