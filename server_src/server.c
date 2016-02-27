@@ -82,7 +82,8 @@ int main(void)
 
   Buffer rec =
       receiveBytes(sockfd, (struct sockaddr *)&their_addr, &addr_len, config);
-  printf("Received %zu bytes", rec.length);
+  printf("Received %zu bytes\n", rec.length);
+  printf("Received message: %s\n", rec.data);
 
   close(sockfd);
 
