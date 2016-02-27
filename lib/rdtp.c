@@ -11,7 +11,7 @@
 
 #include "packet.h"
 
-const int TIMEOUT_SEC = 3;
+const int TIMEOUT_SEC = 0;
 const int TIMEOUT_USEC = 100;
 const int MAX_FIN_ATTEMPT = 5;
 
