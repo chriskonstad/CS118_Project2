@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  if (argc != 3) {
-    fprintf(stderr,"usage: talker hostname message\n");
+  if (argc != 4) {
+    fprintf(stderr,"usage: talker <hostname> <port> <message>\n");
     exit(1);
   }
 
@@ -32,7 +32,9 @@ int main(int argc, char *argv[])
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
 
-  if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
+  char * port = argv[2];
+
+  if ((rv = getaddrinfo(argv[1], port, &hints, &servinfo)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     return 1;
   }
@@ -57,8 +59,8 @@ int main(int argc, char *argv[])
   config.pC = 0.5;  // 50% chance of corruption
 
   Buffer buffer;
-  buffer.data = (uint8_t*)argv[2];
-  buffer.length = strlen(argv[2]);
+  buffer.data = (uint8_t*)argv[3];
+  buffer.length = strlen(argv[3]);
   sendBytes(buffer, sockfd, p->ai_addr, p->ai_addrlen, config);
 
 
