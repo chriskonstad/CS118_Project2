@@ -4,3 +4,7 @@ client
 lib/test
 *.o
 *.a
+*.idea
+CMakeLists.txt
+*.sw
+
