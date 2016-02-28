@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
   buffer.length = strlen(argv[3]);
   sendBytes(buffer, sockfd, p->ai_addr, p->ai_addrlen, config);
 
+  // Receive file back from server here
 
   freeaddrinfo(servinfo);
 

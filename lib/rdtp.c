@@ -137,7 +137,7 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
 }
 
 /**
- * Calculate how hany packets are required to send a buffer
+ * Calculate how many packets are required to send a buffer
  */
 int numPacketsRequired(Buffer buf) {
   int base = buf.length / MAX_PACKET_DATA;

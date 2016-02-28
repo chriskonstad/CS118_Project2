@@ -10,7 +10,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include "../lib/rdtp.h"
+#include "../lib/packet.h"
+#include "../lib/rdtp.c"
 
 #define MYPORT "4950"    // the port users will be connecting to
 
@@ -80,10 +81,20 @@ int main(void)
   Config config;
   config.pC = 0.5;  // 50% chance of corruption
 
-  Buffer rec =
-      receiveBytes(sockfd, (struct sockaddr *)&their_addr, &addr_len, config);
+  Buffer rec = receiveBytes(sockfd, (struct sockaddr *)&their_addr, &addr_len, config);
+
   printf("Received %zu bytes\n", rec.length);
   printf("Received message: %s\n", rec.data);
+
+  FILE *fp = fopen((const char *)rec.data, "r");
+
+  if (fp == NULL) {
+    printf("Error: File %s cannot be found\n", rec.data);
+    Packet fin = makeFin();
+    sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+  }
+
+  // TODO: Packetize opened file and send it back to client
 
   close(sockfd);
 
