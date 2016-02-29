@@ -10,8 +10,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include "../lib/packet.h"
-#include "../lib/rdtp.c"
+#include "../lib/rdtp.h"
 
 #define MYPORT "4950"    // the port users will be connecting to
 
@@ -89,17 +88,22 @@ int main(void)
   // Open the requested file
   FILE *fp = fopen((const char *)rec.data, "r");
 
+  // Default buffer to zero length
+  // Send zero bytes in case of error
+  Buffer fileBuffer;
+  fileBuffer.length = 0;
+  fileBuffer.data = 0;
+
   if (fp == NULL) {
     printf("Error: File %s cannot be found\n", rec.data);
 
-    Packet fin = makeFin();
-    sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+    sendBytes(fileBuffer, sockfd, (struct sockaddr*)&their_addr, addr_len, config);
 
     exit(1);
   }
 
   char * fileBuf;
-  size_t fileSize;
+  long fileSize;
   size_t fileLength;
 
   // Load opened file into fileBuf
@@ -111,43 +115,42 @@ int main(void)
     if (fileSize == -1) {
       printf("Error: File %s cannot be found\n", rec.data);
 
-      Packet fin = makeFin();
-      sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+      sendBytes(fileBuffer, sockfd, (struct sockaddr*)&their_addr, addr_len, config);
 
       exit(1);
     }
 
-    fileBuf = malloc(sizeof(char) * (fileSize+1));
+    fileBuf = (char *)malloc(sizeof(char) * (fileSize+1));
 
     // Reset position to beginning
     if (fseek(fp, 0L, SEEK_SET)) {
       printf("Error: File seeking cannot be completed for %s\n", rec.data);
 
-      Packet fin = makeFin();
-      sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+      sendBytes(fileBuffer, sockfd, (struct sockaddr*)&their_addr, addr_len, config);
 
       exit(1);
     }
 
     fileLength = fread(fileBuf, sizeof(char), fileSize, fp);
 
-    printf("fileLength: %d\n", fileLength);
+    printf("fileLength: %zu\n", fileLength);
 
     // Ensure non-zero length output
     if (!fileLength) {
       printf("Error: Cannot read file %s\n", rec.data);
 
-      Packet fin = makeFin();
-      sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+      sendBytes(fileBuffer, sockfd, (struct sockaddr*)&their_addr, addr_len, config);
 
       exit(1);
     }
 
     fileBuf[fileLength] = '\0';
 
+    Buffer fileBuffer;
+    fileBuffer.data = (uint8_t *)fileBuf;
+    fileBuffer.length = fileLength;
+    sendBytes(fileBuffer, sockfd, (struct sockaddr *)&their_addr, addr_len, config);
   }
-
-  // TODO: Loop through fileBuf, sending one packet at a time
 
   fclose(fp);
 
