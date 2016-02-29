@@ -64,6 +64,25 @@ int main(int argc, char *argv[])
   sendBytes(buffer, sockfd, p->ai_addr, p->ai_addrlen, config);
 
   // Receive file back from server here
+  Buffer downloadedFile = receiveBytes(sockfd, p->ai_addr, &p->ai_addrlen, config);
+  FILE *fp;
+  // TODO set filename
+  fp = fopen("DOWNLOADEDFILE", "w");
+  if (fp == NULL) {
+    printf("Error: File %s cannot be written!\n", argv[3]);
+    exit(1);
+  }
+
+  size_t bytesWritten = fwrite(downloadedFile.data,
+                               sizeof(uint8_t),
+                               downloadedFile.length,
+                               fp);
+  fclose(fp);
+
+  if(bytesWritten != downloadedFile.length) {
+    printf("Error: Did not write out entire file!\n");
+    exit(1);
+  }
 
   freeaddrinfo(servinfo);
 
