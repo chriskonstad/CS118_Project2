@@ -11,9 +11,13 @@
 
 #include "packet.h"
 
-const int TIMEOUT_SEC = 3;
+const int TIMEOUT_SEC = 1;
 const int TIMEOUT_USEC = 100;
 const int MAX_FIN_ATTEMPT = 5;
+
+// Number of times the receiver will receive TIMEDOUT before assuming
+// loss of connection.
+const int MAX_WAIT_ATTEMPTS = 20;
 
 typedef enum { OK, CORRUPTED, TIMEDOUT } STATUS;
 
@@ -36,7 +40,9 @@ void sendPacket(Packet *p, int sockfd, const struct sockaddr *destAddr,
   free(temp);
 
   // Handle errors
-  assert(-1 != bytesSent);  // TODO replace with proper error handling later
+  if(-1 == bytesSent) {
+    printf("sendPacket Error: %s\n", strerror(errno));
+  }
 }
 
 /**
@@ -94,10 +100,22 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
   recBytes.data = NULL;
   recBytes.length = 0;
 
+  int timeOuts = 0;
+
   while (1) {
     STATUS status;
     Packet rec =
         receivePacket(sockfd, fromAddress, fromAddressLen, &status, config);
+
+    // Handle loss of connection
+    if(TIMEDOUT  == status) {
+      timeOuts++;
+      if(MAX_WAIT_ATTEMPTS < timeOuts) {
+        break;
+      }
+    } else {
+      timeOuts = 0;
+    }
 
     // Ignore corrupted packets
     if(status != OK) {
@@ -191,7 +209,11 @@ void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
       // Handle ACK
       rec = receivePacket(sockfd, NULL, NULL, &status, config);
     } while (status != OK);
+    if(!rec.isAck) {
+      printPacket(&rec);
+    }
     assert(rec.isAck);  // TODO replace with real error handling
+
   }
 
   // Send FIN
