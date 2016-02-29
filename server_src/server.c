@@ -86,15 +86,70 @@ int main(void)
   printf("Received %zu bytes\n", rec.length);
   printf("Received message: %s\n", rec.data);
 
+  // Open the requested file
   FILE *fp = fopen((const char *)rec.data, "r");
 
   if (fp == NULL) {
     printf("Error: File %s cannot be found\n", rec.data);
+
     Packet fin = makeFin();
     sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+
+    exit(1);
   }
 
-  // TODO: Packetize opened file and send it back to client
+  char * fileBuf;
+  size_t fileSize;
+  size_t fileLength;
+
+  // Load opened file into fileBuf
+  if (!fseek(fp, 0L, SEEK_END)) { // Set stream position to end of file (SEEK_END)
+
+    fileSize = ftell(fp);
+
+    // Ensure valid size
+    if (fileSize == -1) {
+      printf("Error: File %s cannot be found\n", rec.data);
+
+      Packet fin = makeFin();
+      sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+
+      exit(1);
+    }
+
+    fileBuf = malloc(sizeof(char) * (fileSize+1));
+
+    // Reset position to beginning
+    if (fseek(fp, 0L, SEEK_SET)) {
+      printf("Error: File seeking cannot be completed for %s\n", rec.data);
+
+      Packet fin = makeFin();
+      sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+
+      exit(1);
+    }
+
+    fileLength = fread(fileBuf, sizeof(char), fileSize, fp);
+
+    printf("fileLength: %d\n", fileLength);
+
+    // Ensure non-zero length output
+    if (!fileLength) {
+      printf("Error: Cannot read file %s\n", rec.data);
+
+      Packet fin = makeFin();
+      sendPacket(&fin, sockfd, (struct sockaddr *)&their_addr, addr_len);
+
+      exit(1);
+    }
+
+    fileBuf[fileLength] = '\0';
+
+  }
+
+  // TODO: Loop through fileBuf, sending one packet at a time
+
+  fclose(fp);
 
   close(sockfd);
 
