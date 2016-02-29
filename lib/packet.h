@@ -14,12 +14,12 @@
  * The helper functions can be used to send and receive packets as byte arrays.
  */
 
-const int MAX_PACKET_SIZE = 1024;    // number of bytes
-const int PACKET_HEADER_LENGTH = 5;  // number of bytes
-const int MAX_PACKET_DATA = MAX_PACKET_SIZE - PACKET_HEADER_LENGTH;
+extern const int MAX_PACKET_SIZE;    // number of bytes
+extern const int PACKET_HEADER_LENGTH;  // number of bytes
+extern const int MAX_PACKET_DATA;
 
-const int FLAG_ACK = 1 << 7;
-const int FLAG_FIN = 1 << 6;
+extern const int FLAG_ACK;
+extern const int FLAG_FIN;
 
 typedef struct Packet {
   bool isAck;     // ack flag
@@ -30,45 +30,13 @@ typedef struct Packet {
 } Packet;
 
 // Caller must set data and length fields
-Packet makeTrn(uint32_t seq) {
-  Packet p;
-  p.isAck = false;
-  p.isFin = false;
-  p.seq = seq;
-  p.data = NULL;
-  p.length = 0;
-  return p;
-}
+Packet makeTrn(uint32_t seq);
 
-Packet makeAck(uint32_t seq) {
-  Packet p;
-  p.isAck = true;
-  p.isFin = false;
-  p.seq = seq;
-  p.data = NULL;
-  p.length = 0;
-  return p;
-}
+Packet makeAck(uint32_t seq);
 
-Packet makeFin() {
-  Packet p;
-  p.isAck = false;
-  p.isFin = true;
-  p.seq = 0;
-  p.data = NULL;
-  p.length = 0;
-  return p;
-}
+Packet makeFin();
 
-Packet makeFinAck() {
-  Packet p;
-  p.isAck = true;
-  p.isFin = true;
-  p.seq = 0;
-  p.data = NULL;
-  p.length = 0;
-  return p;
-}
+Packet makeFinAck();
 
 /**
  * Read a byte array (a serialized packet) into a packet.
@@ -76,81 +44,23 @@ Packet makeFinAck() {
  * data array is freed.
  * The passed in data array is freed.
  */
-void parsePacket(const uint8_t *const data, size_t length, Packet *packet) {
-  // Parse flags
-  const uint8_t flags = data[0];
-  packet->isAck = flags & FLAG_ACK;
-  packet->isFin = flags & FLAG_FIN;
-
-  // Parse sequence number
-  const uint32_t *dataAs32Bit = (uint32_t *)(&data[1]);
-  packet->seq = ntohl(dataAs32Bit[0]);
-
-  // Parse data
-  packet->length = length - PACKET_HEADER_LENGTH;
-
-  // Have the packet have its own copy of the data
-  packet->data = (uint8_t *)malloc(packet->length * sizeof(uint8_t));
-  assert(packet->data);
-  memcpy(packet->data, (uint8_t *)&dataAs32Bit[1], packet->length);
-}
+void parsePacket(const uint8_t *const data, size_t length, Packet *packet);
 
 /**
  * Serialize a packet into a uint8_t buffer, including our header information.
  * It is the caller's responsibility to free the serialization.
  * It is the caller's responsibility to free the packet.
  */
-size_t serializePacket(const Packet *const packet, uint8_t **buffer) {
-  // Total serialized length includes packet data and header
-  size_t serializeLength = packet->length + PACKET_HEADER_LENGTH;
-  assert(serializeLength <= MAX_PACKET_SIZE);
-
-  uint8_t *data = (uint8_t *)malloc(serializeLength * sizeof(uint8_t));
-  assert(data);
-
-  // Setup the header
-  // Create flags
-  uint8_t flags = 0;
-  if (packet->isAck) {
-    flags |= FLAG_ACK;
-  }
-  if (packet->isFin) {
-    flags |= FLAG_FIN;
-  }
-  data[0] = flags;
-
-  // Setup the sequence number
-  uint32_t *dataAs32Bit = (uint32_t *)(&data[1]);
-  dataAs32Bit[0] = htonl(packet->seq);
-
-  // Copy over the packet data
-  memcpy(&data[PACKET_HEADER_LENGTH], packet->data, packet->length);
-
-  *buffer = data;
-  return serializeLength;
-}
+size_t serializePacket(const Packet *const packet, uint8_t **buffer);
 
 /**
  * Print the packet (for debugging)
  */
-void printPacket(const Packet *const p) {
-  printf("Packet:\n");
-  printf("\tFLAG_ACK: %d\n\tFLAG_FIN: %d\n\tSEQ: %d\n\tDATA (%zu bytes):",
-         p->isAck, p->isFin, p->seq, p->length);
-  for (size_t i = 0; i < p->length; i++) {
-    printf(" 0x%02x", p->data[i]);
-  }
-  printf("\n");
-}
+void printPacket(const Packet *const p);
 
 /**
  * Clean up a packet, deleting any data needed to be deleted.
  */
-void freePacket(Packet *packet) {
-  if (packet->data) {
-    free(packet->data);
-    packet->data = NULL;
-  }
-}
+void freePacket(Packet *packet);
 
 #endif  // LIB_PACKET_H
