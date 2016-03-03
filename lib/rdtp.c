@@ -11,8 +11,9 @@
 
 #include "packet.h"
 
-const int TIMEOUT_SEC = 1;
-const int TIMEOUT_USEC = 100;
+// Keep the timeout as small as possible to increase transfer rate
+const int TIMEOUT_SEC = 0;
+const int TIMEOUT_USEC = 1000;  // 1 millisecond
 const int MAX_FIN_ATTEMPT = 5;
 
 // Number of times the receiver will receive TIMEDOUT before assuming
@@ -50,7 +51,7 @@ void sendPacket(Packet *p, int sockfd, const struct sockaddr *destAddr,
  */
 Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
                      socklen_t *fromAddressLen, STATUS *status,
-                     Config config) {
+                     Config config, bool isFirstPacket) {
   *status = OK;
   uint8_t buffer[MAX_PACKET_SIZE];
 
@@ -81,10 +82,14 @@ Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
   } else {
     // Timed out
     *status = TIMEDOUT;
-    printf(
-        "\x1B[31m"
-        "\t(TIMED OUT)\n"
-        "\x1B[0m");
+
+    // Don't 'time out' if simply waiting for the first packet
+    if(!isFirstPacket) {
+      printf(
+          "\x1B[31m"
+          "\t(TIMED OUT)\n"
+          "\x1B[0m");
+    }
   }
 
   return ret;
@@ -101,19 +106,25 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
   recBytes.length = 0;
 
   int timeOuts = 0;
+  bool isFirstPacket = true;
 
   while (1) {
     STATUS status;
     Packet rec =
-        receivePacket(sockfd, fromAddress, fromAddressLen, &status, config);
+        receivePacket(sockfd, fromAddress, fromAddressLen, &status, config, isFirstPacket);
 
     // Handle loss of connection
     if(TIMEDOUT  == status) {
       timeOuts++;
       if(MAX_WAIT_ATTEMPTS < timeOuts) {
+        printf(
+            "\x1B[31m"
+            "\t(Connection Lost)\n"
+            "\x1B[0m");
         break;
       }
     } else {
+      isFirstPacket = false;
       timeOuts = 0;
     }
 
@@ -143,11 +154,7 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
       Packet finAck = makeFinAck();
       sendPacket(&finAck, sockfd, fromAddress, *fromAddressLen);
       break;
-      // TODO Handle rest of the ending handshake
-      // TODO There is a bug where the fin is not received, causing this to
-      //      loop forever. Fix!  Do the two way fin-finack handshake like TCP
     }
-
     // TODO Handle rest of the packet types
   }
 
@@ -207,7 +214,7 @@ void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
       sendPacket(&packets[i], sockfd, destAddr, destLen);
 
       // Handle ACK
-      rec = receivePacket(sockfd, NULL, NULL, &status, config);
+      rec = receivePacket(sockfd, NULL, NULL, &status, config, false);
     } while (status != OK);
     if(!rec.isAck) {
       printPacket(&rec);
@@ -225,6 +232,6 @@ void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
     sendPacket(&fin, sockfd, destAddr, destLen);
 
     // Handle FINACK
-    finAck = receivePacket(sockfd, NULL, NULL, &status, config);
+    finAck = receivePacket(sockfd, NULL, NULL, &status, config, false);
   } while(status != OK && attempts < MAX_FIN_ATTEMPT);
 }

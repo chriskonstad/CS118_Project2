@@ -80,7 +80,15 @@ int main(void)
   Config config;
   config.pC = 0.5;  // 50% chance of corruption
 
-  Buffer rec = receiveBytes(sockfd, (struct sockaddr *)&their_addr, &addr_len, config);
+  Buffer rec;
+  rec.data = NULL;
+  rec.length = 0;
+
+  // Will keep timing out while waiting for client to connect, so this will
+  // keep waiting for a client to connect before continuing
+  while (0 == rec.length) {
+    rec = receiveBytes(sockfd, (struct sockaddr *)&their_addr, &addr_len, config);
+  }
 
   printf("Received %zu bytes\n", rec.length);
   printf("Received message: %s\n", rec.data);
