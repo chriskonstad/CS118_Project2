@@ -2,6 +2,7 @@
 #define LIB_RDTP
 
 #include <netinet/in.h>
+#include <stdbool.h>
 
 #include "buffer.h"
 
@@ -27,7 +28,7 @@ typedef struct Config {
 Buffer receiveBytes(int sockfd, struct sockaddr *restrict fromAddress,
                     socklen_t *restrict fromAddressLen, Config config);
 
-void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
+bool sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
                socklen_t destLen, Config config);
 
 #endif  // LIB_RDTP

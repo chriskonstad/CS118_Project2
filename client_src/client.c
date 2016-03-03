@@ -56,15 +56,24 @@ int main(int argc, char *argv[])
   }
 
   Config config;
-  config.pC = 0.5;  // 50% chance of corruption
+  config.pC = 0.8;  // 80% chance of corruption
+  config.pL = 0.8;  // 80% chance of packet loss
 
   Buffer buffer;
   buffer.data = (uint8_t*)argv[3];
   buffer.length = strlen(argv[3]);
-  sendBytes(buffer, sockfd, p->ai_addr, p->ai_addrlen, config);
+  bool asked = sendBytes(buffer, sockfd, p->ai_addr, p->ai_addrlen, config);
+  if(!asked) {
+    printf("Unable to reach server.\n");
+    exit(1);
+  }
 
   // Receive file back from server here
   Buffer downloadedFile = receiveBytes(sockfd, p->ai_addr, &p->ai_addrlen, config);
+  if(downloadedFile.length == 0) {
+    printf("Received no bytes. Exiting.\n");
+    exit(1);
+  }
   FILE *fp;
   // TODO set filename
   fp = fopen("DOWNLOADEDFILE", "w");

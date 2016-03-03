@@ -13,14 +13,15 @@
 
 // Keep the timeout as small as possible to increase transfer rate
 const int TIMEOUT_SEC = 0;
-const int TIMEOUT_USEC = 1000;  // 1 millisecond
+const int TIMEOUT_USEC = 5000;  // 5 millisecond
 const int MAX_FIN_ATTEMPT = 5;
 
 // Number of times the receiver will receive TIMEDOUT before assuming
 // loss of connection.
-const int MAX_WAIT_ATTEMPTS = 20;
+const int MAX_WAIT_ATTEMPTS = 500;
+const int MAX_SEND_ATTEMPTS = 500;
 
-typedef enum { OK, CORRUPTED, TIMEDOUT } STATUS;
+typedef enum { OK, CORRUPTED, TIMEDOUT, LOST } STATUS;
 
 /**
  * Send a singular packet of any type
@@ -75,9 +76,12 @@ Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
     printPacket(&ret);
     // Check if corrupted
     int r = (rand() % 100) + 1; // [1,100]
-    *status = r <= (config.pC * 100) ? OK : CORRUPTED;
+    *status = r <= (config.pC * 100) ? CORRUPTED : OK;
+    *status = r <= (config.pL * 100) ? LOST : *status;
     if(*status == CORRUPTED) {
       printf("\x1B[31m" "\t(CORRUPTED)\n" "\x1B[0m");
+    } else if(*status == LOST) {
+      printf("\x1B[31m" "\t(LOST)\n" "\x1B[0m");
     }
   } else {
     // Timed out
@@ -114,7 +118,7 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
         receivePacket(sockfd, fromAddress, fromAddressLen, &status, config, isFirstPacket);
 
     // Handle loss of connection
-    if(TIMEDOUT  == status) {
+    if(TIMEDOUT  == status && !isFirstPacket) {
       timeOuts++;
       if(MAX_WAIT_ATTEMPTS < timeOuts) {
         printf(
@@ -123,7 +127,10 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
             "\x1B[0m");
         break;
       }
-    } else {
+    }
+
+    // If we RXed a packet, then reset the timeout counter
+    if(CORRUPTED == status || OK == status) {
       isFirstPacket = false;
       timeOuts = 0;
     }
@@ -148,6 +155,7 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
       Packet ack = makeAck(rec.seq);
       freePacket(&rec); // only need to free TRN packets
 
+      assert(status == OK);
       sendPacket(&ack, sockfd, fromAddress, *fromAddressLen);
     } else if (!rec.isAck && rec.isFin) {
       // Send FINACK
@@ -200,16 +208,24 @@ int packetize(Buffer buf, Packet **packets) {
 /**
  * Send a byte array
  */
-void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
+bool sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
                socklen_t destLen, Config config) {
   // Packetize the data
   Packet *packets;
   int numPackets = packetize(buf, &packets);
   STATUS status;
+  int sendAttempts = 0;
 
   for (int i = 0; i < numPackets; i++) {
     Packet rec;
+    sendAttempts = 0;
     do {
+      // If nobody is listening, let the sender timeout
+      if(MAX_SEND_ATTEMPTS < sendAttempts) {
+        return false;
+      }
+      sendAttempts++;
+
       // Send packet
       sendPacket(&packets[i], sockfd, destAddr, destLen);
 
@@ -220,7 +236,6 @@ void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
       printPacket(&rec);
     }
     assert(rec.isAck);  // TODO replace with real error handling
-
   }
 
   // Send FIN
@@ -234,4 +249,6 @@ void sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
     // Handle FINACK
     finAck = receivePacket(sockfd, NULL, NULL, &status, config, false);
   } while(status != OK && attempts < MAX_FIN_ATTEMPT);
+
+  return true;
 }

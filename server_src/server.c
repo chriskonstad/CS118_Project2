@@ -78,7 +78,8 @@ int main(void)
   addr_len = sizeof their_addr;
 
   Config config;
-  config.pC = 0.5;  // 50% chance of corruption
+  config.pC = 0.8;  // 80% chance of corruption
+  config.pL = 0.8;  // 80% chance of packet loss
 
   Buffer rec;
   rec.data = NULL;
