@@ -5,7 +5,7 @@
  * The helper functions can be used to send and receive packets as byte arrays.
  */
 
-const int MAX_PACKET_SIZE = 1024;    // number of bytes
+const int MAX_PACKET_SIZE = 1000;    // number of bytes
 const int PACKET_HEADER_LENGTH = 5;  // number of bytes
 const int MAX_PACKET_DATA = MAX_PACKET_SIZE - PACKET_HEADER_LENGTH;
 
