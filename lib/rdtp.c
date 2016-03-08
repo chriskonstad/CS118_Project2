@@ -23,6 +23,12 @@ const int MAX_SEND_ATTEMPTS = 500;
 
 typedef enum { OK, CORRUPTED, TIMEDOUT, LOST } STATUS;
 
+// Struct to represent a window
+typedef struct Window {
+  size_t min;
+  size_t max;
+} Window;
+
 /**
  * Send a singular packet of any type
  */
@@ -111,6 +117,8 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
   int timeOuts = 0;
   bool isFirstPacket = true;
 
+  int numRollovers = 0; // number of times seq rolls over MAX_SEQ_NUM
+
   while (1) {
     STATUS status;
     Packet rec =
@@ -147,7 +155,11 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
     // Handle different packet types
     if (!rec.isAck && !rec.isFin) {
       // Copy packet data into recBytes
-      if(rec.seq == recBytes.length) {
+      printf("SEQ: %d, LENGTH: %d\n", rec.seq, recBytes.length);
+      if(rec.seq < recBytes.length) {
+        numRollovers++;
+      }
+      if(rec.seq + (numRollovers * MAX_SEQ_NUM) == recBytes.length) {
         recBytes.data =
             (uint8_t *)realloc(recBytes.data, recBytes.length + rec.length);
         assert(recBytes.data);
@@ -195,7 +207,7 @@ int packetize(Buffer buf, Packet **packets) {
   assert(0 != *packets);
   size_t dataOffset = 0;
   for (int i = 0; i < numPackets; i++) {
-    (*packets)[i] = makeTrn(dataOffset);
+    (*packets)[i] = makeTrn(dataOffset % MAX_SEQ_NUM);
     (*packets)[i].data = &buf.data[dataOffset];
     if (i < (numPackets - 1)) {
       (*packets)[i].length = MAX_PACKET_DATA;
