@@ -14,7 +14,7 @@
 // Keep the timeout as small as possible to increase transfer rate
 const int TIMEOUT_SEC = 0;
 const int TIMEOUT_USEC = 5000;  // 5 millisecond
-const int MAX_FIN_ATTEMPT = 5;
+const int MAX_FIN_ATTEMPT = 50;
 
 // Number of times the receiver will receive TIMEDOUT before assuming
 // loss of connection.
@@ -104,7 +104,6 @@ Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
  */
 Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
                     socklen_t *fromAddressLen, Config config) {
-  // TODO also check packet flags to ensure it's a TRN packet
   Buffer recBytes;
   recBytes.data = NULL;
   recBytes.length = 0;
@@ -116,6 +115,11 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
     STATUS status;
     Packet rec =
         receivePacket(sockfd, fromAddress, fromAddressLen, &status, config, isFirstPacket);
+
+    // Eat finacks from old connection
+    if(rec.isFin && rec.isAck) {
+      continue;
+    }
 
     // Handle loss of connection
     if(TIMEDOUT  == status && !isFirstPacket) {
@@ -163,7 +167,6 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
       sendPacket(&finAck, sockfd, fromAddress, *fromAddressLen);
       break;
     }
-    // TODO Handle rest of the packet types
   }
 
   return recBytes;
@@ -216,6 +219,16 @@ bool sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
   STATUS status;
   int sendAttempts = 0;
 
+  // Eat old connection's FIN packets
+  Packet oldFin;
+  do {
+    oldFin = receivePacket(sockfd, NULL, NULL, &status, config, false);
+    if(OK == status) {
+      assert(oldFin.isFin);
+    }
+  } while(TIMEDOUT != status);
+
+  // Send bytes
   for (int i = 0; i < numPackets; i++) {
     Packet rec;
     sendAttempts = 0;
@@ -232,10 +245,10 @@ bool sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
       // Handle ACK
       rec = receivePacket(sockfd, NULL, NULL, &status, config, false);
     } while (status != OK);
+
     if(!rec.isAck) {
-      printPacket(&rec);
+      i--;  // resend this packet
     }
-    assert(rec.isAck);  // TODO replace with real error handling
   }
 
   // Send FIN
@@ -248,6 +261,11 @@ bool sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
 
     // Handle FINACK
     finAck = receivePacket(sockfd, NULL, NULL, &status, config, false);
+
+    // If other side started transmitting
+    if(OK == status && !finAck.isAck && !fin.isFin) {
+      break;
+    }
   } while(status != OK && attempts < MAX_FIN_ATTEMPT);
 
   return true;
