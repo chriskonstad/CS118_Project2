@@ -12,13 +12,13 @@ $(RDTP_A): $(RDTP_O) $(BUFFER_O) $(PACKET_O)
 	ar rcs $@ $^
 
 $(RDTP_O): $(RDTP_SOURCES)
-	gcc -c -o $@ $<
+	gcc -c -g -o $@ $<
 
 $(BUFFER_O): $(BUFFER_SOURCES)
-	gcc -c -o $@ $<
+	gcc -c -g -o $@ $<
 
 $(PACKET_O): $(PACKET_SOURCES)
-	gcc -c -o $@ $<
+	gcc -c -g -o $@ $<
 
 .PHONY: clean
 clean:
