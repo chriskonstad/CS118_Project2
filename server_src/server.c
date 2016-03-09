@@ -39,8 +39,8 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  if (argc != 1 && argc != 3) {
-    fprintf(stderr,"usage: optional: <corruption> <packet loss>\n");
+  if (argc != 2 && argc != 4) {
+    fprintf(stderr,"usage: <port> optional: <corruption> <packet loss>\n");
     exit(1);
   }
 
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE; // use my IP
 
-  if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {
+  if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     return 1;
   }
@@ -84,9 +84,9 @@ int main(int argc, char *argv[])
 
 
   Config config;
-  if (argc == 3) {
-    config.pC = atof(argv[1]);
-    config.pL = atof(argv[2]);
+  if (argc == 4) {
+    config.pC = atof(argv[2]);
+    config.pL = atof(argv[3]);
   } else {
     // Default pC/pL values
     config.pC = 0.8;  // 80% chance of corruption
