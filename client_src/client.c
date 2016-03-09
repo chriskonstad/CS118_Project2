@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  if (argc != 4 && argc != 6) {
-    fprintf(stderr,"usage: talker <hostname> <port> <filename> optional: <corruption> <packet loss>\n");
+  if (argc != 4 && argc != 7) {
+    fprintf(stderr,"usage: talker <hostname> <port> <filename> <CWnd> optional: <corruption> <packet loss> <CWnd>\n");
     exit(1);
   }
 
@@ -56,13 +56,17 @@ int main(int argc, char *argv[])
   }
 
   Config config;
-  if (argc == 6) {
+  if (argc == 7) {
     config.pC = atof(argv[4]);
     config.pL = atof(argv[5]);
+
+    int windowSize = atoi(argv[6]);
+    config.windowSize = windowSize;
   } else {
-    // Default pC/pL values
+    // Default pC/pL/CWnd values
     config.pC = 0.8;  // 80% chance of corruption
     config.pL = 0.8;  // 80% chance of packet loss
+    config.windowSize = 5000;
   }
 
   Buffer buffer;
@@ -74,7 +78,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  printf("Asked for file %s", argv[3]);
+  printf("Asked for file %s\n", argv[3]);
 
   // Receive file back from server here
   Buffer downloadedFile = receiveBytes(sockfd, p->ai_addr, &p->ai_addrlen, config);

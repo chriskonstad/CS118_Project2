@@ -81,21 +81,22 @@ int main(int argc, char *argv[])
   printf("listener: waiting to recvfrom...\n");
 
   addr_len = sizeof their_addr;
-  int windowSize = atoi(argv[4]);
 
   Config config;
-  config.windowSize = windowSize;
-  if (argc >= 4) {
+  if (argc == 5) {
     config.pC = atof(argv[2]);
     config.pL = atof(argv[3]);
+
+    int windowSize = atoi(argv[4]);
+    config.windowSize = windowSize;
   } else {
-    // Default pC/pL values
+    // Default pC/pL/CWnd values
     config.pC = 0.8;  // 80% chance of corruption
     config.pL = 0.8;  // 80% chance of packet loss
+    config.windowSize = 5000;
   }
 
-
-  printf("WindowSize: %d\n", windowSize);
+  //printf("WindowSize: %d\n", config.windowSize);
   Buffer rec;
   rec.data = NULL;
   rec.length = 0;
