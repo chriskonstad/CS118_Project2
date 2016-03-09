@@ -107,8 +107,13 @@ int main(int argc, char *argv[])
     rec = receiveBytes(sockfd, (struct sockaddr *)&their_addr, &addr_len, config);
   }
 
+  // Ensure string
+  rec.data = (uint8_t *)realloc(rec.data, rec.length + 1 * sizeof(uint8_t));
+  rec.length++;
+  rec.data[rec.length-1] = '\0';
+
   printf("Received %zu bytes\n", rec.length);
-  printf("Received message: %s\n", rec.data);
+  printf("Client asked for file: %s\n", rec.data);
 
   // Open the requested file
   FILE *fp = fopen((const char *)rec.data, "r");
