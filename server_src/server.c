@@ -12,30 +12,13 @@
 
 #include "../lib/rdtp.h"
 
-#define MYPORT "4950"    // the port users will be connecting to
-
-#define MAXBUFLEN 100
-
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
-  if (sa->sa_family == AF_INET) {
-    return &(((struct sockaddr_in*)sa)->sin_addr);
-  }
-
-  return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
 int main(int argc, char *argv[])
 {
   int sockfd;
   struct addrinfo hints, *servinfo, *p;
   int rv;
-  int numbytes;
   struct sockaddr_storage their_addr;
-  char buf[MAXBUFLEN];
   socklen_t addr_len;
-  char s[INET6_ADDRSTRLEN];
 
   srand(time(NULL));
 
