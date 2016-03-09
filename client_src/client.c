@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
   Config config;
   config.pC = 0.2;  // 80% chance of corruption
   config.pL = 0.2;  // 80% chance of packet loss
-  config.windowSize = 300;
+  config.windowSize = 5000;
 
   Buffer buffer;
   buffer.data = (uint8_t*)argv[3];
