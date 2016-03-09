@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  printf("Asked for file %s", argv[3]);
+  printf("Asked for file %s\n", argv[3]);
 
   // Receive file back from server here
   Buffer downloadedFile = receiveBytes(sockfd, p->ai_addr, &p->ai_addrlen, config);
