@@ -26,7 +26,7 @@ void *get_in_addr(struct sockaddr *sa)
   return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
   int sockfd;
   struct addrinfo hints, *servinfo, *p;
@@ -38,6 +38,11 @@ int main(void)
   char s[INET6_ADDRSTRLEN];
 
   srand(time(NULL));
+
+  if (argc != 1 && argc != 3) {
+    fprintf(stderr,"usage: optional: <corruption> <packet loss>\n");
+    exit(1);
+  }
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC; // set to AF_INET to force IPv4
@@ -77,10 +82,16 @@ int main(void)
 
   addr_len = sizeof their_addr;
 
-  // TODO: Command line customization for pC & pL on server?
+
   Config config;
-  config.pC = 0.8;  // 80% chance of corruption
-  config.pL = 0.8;  // 80% chance of packet loss
+  if (argc == 3) {
+    config.pC = atof(argv[1]);
+    config.pL = atof(argv[2]);
+  } else {
+    // Default pC/pL values
+    config.pC = 0.8;  // 80% chance of corruption
+    config.pL = 0.8;  // 80% chance of packet loss
+  }
 
   Buffer rec;
   rec.data = NULL;
