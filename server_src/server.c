@@ -39,8 +39,8 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  if (argc != 2 && argc != 4) {
-    fprintf(stderr,"usage: <port> optional: <corruption> <packet loss>\n");
+  if (argc != 2 && argc != 5) {
+    fprintf(stderr,"usage: <port> optional: <corruption> <packet loss> <CWnd>\n");
     exit(1);
   }
 
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 
 
   Config config;
-  if (argc == 4) {
+  if (argc >= 4) {
     config.pC = atof(argv[2]);
     config.pL = atof(argv[3]);
   } else {
@@ -93,6 +93,9 @@ int main(int argc, char *argv[])
     config.pL = 0.8;  // 80% chance of packet loss
   }
 
+  int windowSize = atoi(argv[4]);
+
+  printf("WindowSize: %d\n", windowSize);
   Buffer rec;
   rec.data = NULL;
   rec.length = 0;
