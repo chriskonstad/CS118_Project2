@@ -64,8 +64,8 @@ Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
 
   // Enable timeout
   struct timeval tv;
-  tv.tv_sec = TIMEOUT_SEC;  // 3 second timeout
-  tv.tv_usec = TIMEOUT_USEC;
+  tv.tv_sec = config.timeout_sec;  // 3 second timeout
+  tv.tv_usec = config.timeout_usec;
   fd_set sockets;
   FD_ZERO(&sockets);
   FD_SET(sockfd, &sockets);
@@ -230,7 +230,7 @@ int packetize(Buffer buf, Packet **packets) {
   assert(0 != *packets);
   size_t dataOffset = 0;
   for (int i = 0; i < numPackets; i++) {
-    (*packets)[i] = makeTrn(dataOffset % MAX_SEQ_NUM);
+    (*packets)[i] = makeTrn(dataOffset % (MAX_SEQ_NUM + 1));
     (*packets)[i].data = &buf.data[dataOffset];
     if (i < (numPackets - 1)) {
       (*packets)[i].length = MAX_PACKET_DATA;
