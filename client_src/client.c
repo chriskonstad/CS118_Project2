@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  if (argc != 4 && argc != 6) {
-    fprintf(stderr,"usage: talker <hostname> <port> <filename> optional: <corruption> <packet loss>\n");
+  if (argc != 4 && argc != 7) {
+    fprintf(stderr,"usage: <hostname> <port> <filename> optional: <corruption> <packet loss> <CWnd>\n");
     exit(1);
   }
 
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
   for(p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype,
             p->ai_protocol)) == -1) {
-      perror("talker: socket");
+      perror("client: socket");
       continue;
     }
 
@@ -51,18 +51,22 @@ int main(int argc, char *argv[])
   }
 
   if (p == NULL) {
-    fprintf(stderr, "talker: failed to create socket\n");
+    fprintf(stderr, "client: failed to create socket\n");
     return 2;
   }
 
   Config config;
-  if (argc == 6) {
+  if (argc == 7) {
     config.pC = atof(argv[4]);
     config.pL = atof(argv[5]);
+    int windowSize = atoi(argv[6]);
+    printf("WindowSize: %d\n", windowSize);
+    config.windowSize = windowSize;
   } else {
     // Default pC/pL values
-    config.pC = 0.8;  // 80% chance of corruption
-    config.pL = 0.8;  // 80% chance of packet loss
+    config.pC = 0.0;  // 00% chance of corruption
+    config.pL = 0.0;  // 00% chance of packet loss
+    config.windowSize = 5000;
   }
 
   Buffer buffer;

@@ -58,13 +58,13 @@ int main(int argc, char *argv[])
   for(p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype,
             p->ai_protocol)) == -1) {
-      perror("listener: socket");
+      perror("server: socket");
       continue;
     }
 
     if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
       close(sockfd);
-      perror("listener: bind");
+      perror("server: bind");
       continue;
     }
 
@@ -72,30 +72,31 @@ int main(int argc, char *argv[])
   }
 
   if (p == NULL) {
-    fprintf(stderr, "listener: failed to bind socket\n");
+    fprintf(stderr, "server: failed to bind socket\n");
     return 2;
   }
 
   freeaddrinfo(servinfo);
 
-  printf("listener: waiting to recvfrom...\n");
+  printf("server: waiting to recvfrom...\n");
 
   addr_len = sizeof their_addr;
 
 
   Config config;
-  if (argc >= 4) {
+  if (argc == 5) {
     config.pC = atof(argv[2]);
     config.pL = atof(argv[3]);
+    int windowSize = atoi(argv[4]);
+    printf("WindowSize: %d\n", windowSize);
+    config.windowSize = windowSize;
   } else {
     // Default pC/pL values
-    config.pC = 0.8;  // 80% chance of corruption
-    config.pL = 0.8;  // 80% chance of packet loss
+    config.pC = 0.0;  // 00% chance of corruption
+    config.pL = 0.0;  // 00% chance of packet loss
+    config.windowSize = 5000;
   }
 
-  int windowSize = atoi(argv[4]);
-
-  printf("WindowSize: %d\n", windowSize);
   Buffer rec;
   rec.data = NULL;
   rec.length = 0;
