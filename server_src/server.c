@@ -58,13 +58,13 @@ int main(int argc, char *argv[])
   for(p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype,
             p->ai_protocol)) == -1) {
-      perror("listener: socket");
+      perror("server: socket");
       continue;
     }
 
     if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
       close(sockfd);
-      perror("listener: bind");
+      perror("server: bind");
       continue;
     }
 
@@ -72,13 +72,13 @@ int main(int argc, char *argv[])
   }
 
   if (p == NULL) {
-    fprintf(stderr, "listener: failed to bind socket\n");
+    fprintf(stderr, "server: failed to bind socket\n");
     return 2;
   }
 
   freeaddrinfo(servinfo);
 
-  printf("listener: waiting to recvfrom...\n");
+  printf("server: waiting to recvfrom...\n");
 
   addr_len = sizeof their_addr;
 
