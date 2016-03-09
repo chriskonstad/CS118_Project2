@@ -12,8 +12,6 @@
 #include "packet.h"
 
 // Keep the timeout as small as possible to increase transfer rate
-const int TIMEOUT_SEC = 0;
-const int TIMEOUT_USEC = 5000;  // 5 millisecond
 const int MAX_FIN_ATTEMPT = 50;
 
 // Number of times the receiver will receive TIMEDOUT before assuming
