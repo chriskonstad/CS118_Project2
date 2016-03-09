@@ -77,6 +77,7 @@ int main(void)
 
   addr_len = sizeof their_addr;
 
+  // TODO: Command line customization for pC & pL on server?
   Config config;
   config.pC = 0.8;  // 80% chance of corruption
   config.pL = 0.8;  // 80% chance of packet loss
