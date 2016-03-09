@@ -9,7 +9,7 @@ PACKET_O=packet.o
 PACKET_SOURCES=packet.c packet.h
 
 CC=gcc
-CFLAGS=-c -g -std=c99
+CFLAGS=-c -g -std=gnu99
 
 $(RDTP_A): $(RDTP_O) $(BUFFER_O) $(PACKET_O)
 	ar rcs $@ $^

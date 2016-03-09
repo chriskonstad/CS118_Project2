@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=c99
+CFLAGS=-std=gnu99
 EXECUTABLE=../server
 SOURCES=server.c
 LIBRARY=../lib/librdtp.a
