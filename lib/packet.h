@@ -16,7 +16,6 @@
 
 extern const int MAX_PACKET_SIZE;    // number of bytes
 extern const int PACKET_HEADER_LENGTH;  // number of bytes
-extern const int MAX_PACKET_DATA;
 extern const int MAX_SEQ_NUM;
 
 extern const int FLAG_ACK;

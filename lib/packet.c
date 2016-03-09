@@ -7,7 +7,6 @@
 
 const int MAX_PACKET_SIZE = 1000;    // number of bytes
 const int PACKET_HEADER_LENGTH = 5;  // number of bytes
-const int MAX_PACKET_DATA = MAX_PACKET_SIZE - PACKET_HEADER_LENGTH;
 const int MAX_SEQ_NUM = 30000;  // 30,000 is the max seq num allowed
 
 const int FLAG_ACK = 1 << 7;

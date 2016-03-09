@@ -209,8 +209,9 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
  * Calculate how many packets are required to send a buffer
  */
 int numPacketsRequired(Buffer buf) {
-  int base = buf.length / MAX_PACKET_DATA;
-  int mod = buf.length % MAX_PACKET_DATA;
+  const int max_packet_data = MAX_PACKET_SIZE - PACKET_HEADER_LENGTH;
+  int base = buf.length / max_packet_data;
+  int mod = buf.length % max_packet_data;
   if (mod) {
     base++;
   }
@@ -223,6 +224,7 @@ int numPacketsRequired(Buffer buf) {
  * The caller should free the packet list, though.
  */
 int packetize(Buffer buf, Packet **packets) {
+  const int max_packet_data = MAX_PACKET_SIZE - PACKET_HEADER_LENGTH;
   int numPackets = numPacketsRequired(buf);
   *packets = (Packet *)malloc(numPackets * sizeof(Packet));
   assert(0 != *packets);
@@ -231,7 +233,7 @@ int packetize(Buffer buf, Packet **packets) {
     (*packets)[i] = makeTrn(dataOffset % (MAX_SEQ_NUM + 1));
     (*packets)[i].data = &buf.data[dataOffset];
     if (i < (numPackets - 1)) {
-      (*packets)[i].length = MAX_PACKET_DATA;
+      (*packets)[i].length = max_packet_data;
     } else {
       (*packets)[i].length = buf.length - dataOffset;
     }
