@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  if (argc != 4) {
-    fprintf(stderr,"usage: talker <hostname> <port> <message>\n");
+  if (argc != 4 && argc != 6) {
+    fprintf(stderr,"usage: talker <hostname> <port> <message> optional: <corruption> <packet loss>\n");
     exit(1);
   }
 
@@ -56,8 +56,14 @@ int main(int argc, char *argv[])
   }
 
   Config config;
-  config.pC = 0.8;  // 80% chance of corruption
-  config.pL = 0.8;  // 80% chance of packet loss
+  if (argc == 6) {
+    config.pC = atof(argv[4]);
+    config.pL = atof(argv[5]);
+  } else {
+    // Default pC/pL values
+    config.pC = 0.8;  // 80% chance of corruption
+    config.pL = 0.8;  // 80% chance of packet loss
+  }
 
   Buffer buffer;
   buffer.data = (uint8_t*)argv[3];
@@ -82,7 +88,7 @@ int main(int argc, char *argv[])
   strcpy(downloadedFileName, "DL_");
   strcat(downloadedFileName, argv[3]);
 
-  printf("Name of file: %s", downloadedFileName);
+  //printf("Name of file: %s", downloadedFileName);
 
   fp = fopen(downloadedFileName, "w");
   if (fp == NULL) {
