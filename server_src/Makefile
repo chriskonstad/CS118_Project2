@@ -1,10 +1,11 @@
 CC=gcc
+CFLAGS=-std=c99
 EXECUTABLE=../server
 SOURCES=server.c
 LIBRARY=../lib/librdtp.a
 
 $(EXECUTABLE): $(SOURCES) $(LIBRARY)
-	$(CC) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 .PHONY: $(LIBRARY)
 $(LIBRARY):

@@ -8,17 +8,20 @@ BUFFER_SOURCES=buffer.c buffer.h
 PACKET_O=packet.o
 PACKET_SOURCES=packet.c packet.h
 
+CC=gcc
+CFLAGS=-c -g -std=c99
+
 $(RDTP_A): $(RDTP_O) $(BUFFER_O) $(PACKET_O)
 	ar rcs $@ $^
 
 $(RDTP_O): $(RDTP_SOURCES)
-	gcc -c -g -o $@ $<
+	$(CC) $(CFLAGS) -o $@ $<
 
 $(BUFFER_O): $(BUFFER_SOURCES)
-	gcc -c -g -o $@ $<
+	$(CC) $(CFLAGS) -o $@ $<
 
 $(PACKET_O): $(PACKET_SOURCES)
-	gcc -c -g -o $@ $<
+	$(CC) $(CFLAGS) -o $@ $<
 
 .PHONY: clean
 clean:
