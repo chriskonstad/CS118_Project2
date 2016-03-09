@@ -77,8 +77,14 @@ int main(int argc, char *argv[])
     exit(1);
   }
   FILE *fp;
-  // TODO set filename
-  fp = fopen("DOWNLOADEDFILE", "w");
+
+  char downloadedFileName[4096];
+  strcpy(downloadedFileName, "DL_");
+  strcat(downloadedFileName, argv[3]);
+
+  printf("Name of file: %s", downloadedFileName);
+
+  fp = fopen(downloadedFileName, "w");
   if (fp == NULL) {
     printf("Error: File %s cannot be written!\n", argv[3]);
     exit(1);
