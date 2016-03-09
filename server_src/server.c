@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
   srand(time(NULL));
 
   if (argc != 2 && argc != 5 && argc != 7) {
-    fprintf(stderr,"usage: <port> optional: <corruption> <packet loss> <CWnd> (<timeout_sec> <timeout_usec>)\n");
+    fprintf(stderr,"usage: server <port> optional: <corruption> <packet loss> <CWnd> (<timeout_sec> <timeout_usec>)\n");
     exit(1);
   }
 

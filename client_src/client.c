@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
   srand(time(NULL));
 
   if (argc != 4 && argc != 7 && argc != 9) {
-    fprintf(stderr,"usage: talker <hostname> <port> <filename> optional: <corruption> <packet loss> <CWnd> (<timeout_sec> <timeout_usec>)\n");
+    fprintf(stderr,"usage: client <hostname> <port> <filename> optional: <corruption> <packet loss> <CWnd> (<timeout_sec> <timeout_usec>)\n");
     exit(1);
   }
 
