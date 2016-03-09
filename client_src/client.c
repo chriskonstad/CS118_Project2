@@ -56,8 +56,9 @@ int main(int argc, char *argv[])
   }
 
   Config config;
-  config.pC = 0.8;  // 80% chance of corruption
-  config.pL = 0.8;  // 80% chance of packet loss
+  config.pC = 0.2;  // 80% chance of corruption
+  config.pL = 0.2;  // 80% chance of packet loss
+  config.windowSize = 300;
 
   Buffer buffer;
   buffer.data = (uint8_t*)argv[3];
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  printf("Asked for file %s", argv[3]);
+  printf("Asked for file %s\n", argv[3]);
 
   // Receive file back from server here
   Buffer downloadedFile = receiveBytes(sockfd, p->ai_addr, &p->ai_addrlen, config);

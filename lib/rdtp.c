@@ -25,8 +25,8 @@ typedef enum { OK, CORRUPTED, TIMEDOUT, LOST } STATUS;
 
 // Struct to represent a window
 typedef struct Window {
-  size_t min;
-  size_t max;
+  ssize_t min;
+  ssize_t max;
 } Window;
 
 /**
@@ -118,6 +118,9 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
   bool isFirstPacket = true;
 
   int numRollovers = 0; // number of times seq rolls over MAX_SEQ_NUM
+  Window window;
+  window.min = 0;
+  window.max = config.windowSize;
 
   while (1) {
     STATUS status;
@@ -155,17 +158,58 @@ Buffer receiveBytes(int sockfd, struct sockaddr *fromAddress,
     // Handle different packet types
     if (!rec.isAck && !rec.isFin) {
       // Copy packet data into recBytes
-      printf("SEQ: %d, LENGTH: %d\n", rec.seq, recBytes.length);
-      if(rec.seq < recBytes.length) {
+      /*printf("SEQ: %d, LENGTH: %d\n", rec.seq, recBytes.length);*/
+      /*if(rec.seq < window.min) {*/
+      /*  numRollovers++;*/
+      /*}*/
+      // Figure out the absolute offset
+      ssize_t offset = rec.seq + (numRollovers * MAX_SEQ_NUM);
+      printf("Offset: %zd, WindowMin: %zd\n", offset, window.min);
+      if(offset <= window.min - config.windowSize) {
+        printf("ROLLED OVER\n");
         numRollovers++;
       }
-      if(rec.seq + (numRollovers * MAX_SEQ_NUM) == recBytes.length) {
-        recBytes.data =
-            (uint8_t *)realloc(recBytes.data, recBytes.length + rec.length);
-        assert(recBytes.data);
-        memcpy(&recBytes.data[recBytes.length], rec.data, rec.length);
-        recBytes.length += rec.length;
+      offset = rec.seq + (numRollovers * MAX_SEQ_NUM);  // recalc the offset
+      // Adjust for window straddling the rollover point
+      if(window.max + config.windowSize <= offset) {
+        offset = rec.seq + ((numRollovers -1) * MAX_SEQ_NUM);
       }
+      // Move the window if needed
+      // TODO Window doesn't always move up when needed to move up
+      /*if(window.min == offset) {
+        window.min = offset + rec.length;
+        window.max = window.min + config.windowSize;
+      } else*/ if(window.max < offset) {
+        window.max = offset;
+        window.min = window.max - config.windowSize;
+      }
+      printf("Offset: %zd, WindowMin: %zd\n", offset, window.min);
+
+      // Grow buffer if need  be
+      if(recBytes.length < offset + rec.length) {
+        recBytes.data =
+            (uint8_t *)realloc(recBytes.data, offset + rec.length);
+        recBytes.length = offset + rec.length;
+      }
+
+      // Copy in the data
+      memcpy(&recBytes.data[offset], rec.data, rec.length);
+      printf(
+          "\x1B[31m"
+          "(SAVED AT OFFSET %zd)\n"
+          "\x1B[0m", offset);
+
+      /*if(window.min <= offset) {*/
+      /*  if(window.max <= offset) {*/
+      /*  }*/
+      /*  window.max = recBytes.length + rec.length;*/
+      /*  window.min = window.max - config.windowSize;*/
+      /*  recBytes.data =*/
+      /*      (uint8_t *)realloc(recBytes.data, recBytes.length + rec.length);*/
+      /*  assert(recBytes.data);*/
+      /*  memcpy(&recBytes.data[recBytes.length], rec.data, rec.length);*/
+      /*  recBytes.length += rec.length;*/
+      /*}*/
 
       // Send ACK
       Packet ack = makeAck(rec.seq);
@@ -221,6 +265,33 @@ int packetize(Buffer buf, Packet **packets) {
 }
 
 /**
+ * Return the index of the first unack'd packet
+ */
+int firstUnacked(Packet *packets, int num) {
+  for(int i=0; i<num; i++) {
+    if(!packets[i].isAck)
+      return i;
+  }
+
+  return -1;
+}
+
+/**
+ * Return the offset into the byte stream of a packet at index
+ */
+ssize_t offset(Packet *packets, int index) {
+  int rollOvers = 0;
+
+  for(int i=1; i<=index; i++) {
+    if(packets[i].seq < packets[i-1].seq) {
+      rollOvers++;
+    }
+  }
+
+  return packets[index].seq + (MAX_SEQ_NUM * rollOvers);
+}
+
+/**
  * Send a byte array
  */
 bool sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
@@ -230,6 +301,13 @@ bool sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
   int numPackets = packetize(buf, &packets);
   STATUS status;
   int sendAttempts = 0;
+  Window window;
+  window.min = 0;
+  window.max = config.windowSize;
+
+  for(int i=0; i<numPackets; i++) {
+    printf("OFFSET: %zd\n", offset(packets, i));
+  }
 
   // Eat old connection's FIN packets
   Packet oldFin;
@@ -240,28 +318,74 @@ bool sendBytes(Buffer buf, int sockfd, const struct sockaddr *destAddr,
     }
   } while(TIMEDOUT != status);
 
-  // Send bytes
-  for (int i = 0; i < numPackets; i++) {
-    Packet rec;
-    sendAttempts = 0;
-    do {
-      // If nobody is listening, let the sender timeout
-      if(MAX_SEND_ATTEMPTS < sendAttempts) {
-        return false;
-      }
-      sendAttempts++;
-
-      // Send packet
-      sendPacket(&packets[i], sockfd, destAddr, destLen);
-
-      // Handle ACK
-      rec = receivePacket(sockfd, NULL, NULL, &status, config, false);
-    } while (status != OK);
-
-    if(!rec.isAck) {
-      i--;  // resend this packet
+  while(-1 != firstUnacked(packets, numPackets)) {
+    // If nobody is listening, let the sender timeout
+    if(MAX_SEND_ATTEMPTS < sendAttempts) {
+      return false;
     }
+    sendAttempts++;
+
+    // Move window up if need be
+    int index = firstUnacked(packets, numPackets);
+    window.min = offset(packets, index);
+    window.max = window.min + config.windowSize;
+
+    printf("SENDING PACKETS\n");
+
+    // Send all packets with seq in window
+    for(int i=index; i<numPackets; i++) {
+      // Only send packets in window size
+      if(window.max < offset(packets, i)) {
+        break;
+      }
+
+      // Send if unacked
+      if(!packets[i].isAck) {
+        // Send packet
+        sendPacket(&packets[i], sockfd, destAddr, destLen);
+      }
+    }
+
+    // RX all acks
+    Packet rec;
+    do {
+      rec = receivePacket(sockfd, NULL, NULL, &status, config, false);
+      if(OK == status && rec.isAck) {
+        for(int i=index; i<numPackets; i++) {
+          if(window.max < offset(packets, i)) {
+            break;
+          }
+          if(rec.seq == packets[i].seq) {
+            packets[i].isAck = true;
+            sendAttempts = 0;
+          }
+        }
+      }
+    } while(status != TIMEDOUT);
   }
+
+  /*// Send bytes*/
+  /*for (int i = 0; i < numPackets; i++) {*/
+  /*  Packet rec;*/
+  /*  sendAttempts = 0;*/
+  /*  do {*/
+  /*    // If nobody is listening, let the sender timeout*/
+  /*    if(MAX_SEND_ATTEMPTS < sendAttempts) {*/
+  /*      return false;*/
+  /*    }*/
+  /*    sendAttempts++;*/
+
+  /*    // Send packet*/
+  /*    sendPacket(&packets[i], sockfd, destAddr, destLen);*/
+
+  /*    // Handle ACK*/
+  /*    rec = receivePacket(sockfd, NULL, NULL, &status, config, false);*/
+  /*  } while (status != OK);*/
+
+  /*  if(!rec.isAck) {*/
+  /*    i--;  // resend this packet*/
+  /*  }*/
+  /*}*/
 
   // Send FIN
   Packet finAck;
