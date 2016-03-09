@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
 
   srand(time(NULL));
 
-  if (argc != 4 && argc != 7) {
-    fprintf(stderr,"usage: talker <hostname> <port> <filename> optional: <corruption> <packet loss> <CWnd>\n");
+  if (argc != 4 && argc != 7 && argc != 9) {
+    fprintf(stderr,"usage: talker <hostname> <port> <filename> optional: <corruption> <packet loss> <CWnd> (<timeout_sec> <timeout_usec>)\n");
     exit(1);
   }
 
@@ -63,11 +63,28 @@ int main(int argc, char *argv[])
     int windowSize = atoi(argv[6]);
     //printf("WindowSize: %d\n", windowSize);
     config.windowSize = windowSize;
+
+    config.timeout_sec = 0;
+    config.timeout_usec = 5000;
+  } else if (argc == 9) {
+    config.pC = atof(argv[4]);
+    config.pL = atof(argv[5]);
+
+    int windowSize = atoi(argv[6]);
+    //printf("WindowSize: %d\n", windowSize);
+    config.windowSize = windowSize;
+
+    config.timeout_sec = atoi(argv[7]);
+    config.timeout_usec = atoi(argv[8]);
+
   } else {
     // Default pC/pL values
     config.pC = 0.0;  // 00% chance of corruption
     config.pL = 0.0;  // 00% chance of packet loss
     config.windowSize = 5000;
+
+    config.timeout_sec = 0;
+    config.timeout_usec = 5000;
   }
 
   Buffer buffer;

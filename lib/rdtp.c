@@ -64,8 +64,8 @@ Packet receivePacket(int sockfd, struct sockaddr *fromAddress,
 
   // Enable timeout
   struct timeval tv;
-  tv.tv_sec = TIMEOUT_SEC;  // 3 second timeout
-  tv.tv_usec = TIMEOUT_USEC;
+  tv.tv_sec = config.timeout_sec;  // 3 second timeout
+  tv.tv_usec = config.timeout_usec;
   fd_set sockets;
   FD_ZERO(&sockets);
   FD_SET(sockfd, &sockets);

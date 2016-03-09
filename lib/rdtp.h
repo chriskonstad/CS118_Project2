@@ -13,6 +13,8 @@ typedef struct Config {
   double pC;
   double pL;
   int windowSize;
+  int timeout_sec;
+  int timeout_usec;
 } Config;
 
 /**
