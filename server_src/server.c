@@ -81,9 +81,10 @@ int main(int argc, char *argv[])
   printf("listener: waiting to recvfrom...\n");
 
   addr_len = sizeof their_addr;
-
+  int windowSize = atoi(argv[4]);
 
   Config config;
+  config.windowSize = windowSize;
   if (argc >= 4) {
     config.pC = atof(argv[2]);
     config.pL = atof(argv[3]);
@@ -93,7 +94,6 @@ int main(int argc, char *argv[])
     config.pL = 0.8;  // 80% chance of packet loss
   }
 
-  int windowSize = atoi(argv[4]);
 
   printf("WindowSize: %d\n", windowSize);
   Buffer rec;
