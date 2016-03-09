@@ -12,14 +12,11 @@
 
 #include "../lib/rdtp.h"
 
-#define SERVERPORT "4950"    // the port users will be connecting to
-
 int main(int argc, char *argv[])
 {
   int sockfd;
   struct addrinfo hints, *servinfo, *p;
   int rv;
-  int numbytes;
 
   srand(time(NULL));
 
