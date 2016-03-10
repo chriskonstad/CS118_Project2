@@ -31,7 +31,7 @@
 \date{}
 
 %make title bold and 14 pt font (Latex default is non-bold, 16 pt)
-\title{\Large \bf CS118 Project 2}
+\title{\Large \bf CS118 Project 2: Reliable Data Transfer Protocol}
 
 %for single author (just remove % characters)
 \author{
@@ -52,16 +52,90 @@
 % Comment it out when you first submit the paper for review.
 \thispagestyle{empty}
 
-
-\subsection*{Abstract}
-
 \section{Implementation Description}
-\subsection{Header format}
-\subsection{Messages}
+\subsection{Protocol overview}
+Our protocol has a few main message types: TRN (transfer), ACK (acknowledge), FIN (finalize), and FINACK (final acknowledge).
+Message types are distinguished in the packet header using a bit field.
+
+In general, TRN packets are acknowledged using ACK packets with the same sequence number, and FIN packets are acknowledged using FINACK packets, which are packets with both the FIN and ACK flags set.
+The protocol is a bit more complicated than that due to the send and receive windows and selective repeat, but that is basically how the protocol works.
+
+If a message is either lost or corrupted, the sender does not receive an ACK for that TRN packet and resends it after the timeout.
+
+Packets are only sent a finite number of times before communication is assumed to be lost, in which case the transfer closes.
+
+\subsection{Packet layout}
+The packet header consists of 5 bytes of data.
+Since our maximum packet length was 5 thousand bytes, that leaves up to 995 bytes for holding data.
+Packets with a length of 0 in Figure~\ref{tab:lg_pkt} don't have any data bytes.
+
+The maximum sequence number is 30000.
+The use of a receiving window helps calculate the total offset of a packet's data upon reception.
+
+\begin{figure}[h]
+\begin{tabular}{l l l l r r}
+  TYPE & DATA & LENGTH & SEQ & $f_{FIN}$ & $f_{ACK}$\\
+  \hline
+  ACK & NA & 0 & seq & 0 & 1 \\
+  FIN & NA & 0 & NA & 1 & 0 \\
+  FINACK & NA & 0 & NA & 1 & 1 \\
+  TRN & data & length & seq & 0 & 0 \\
+\end{tabular}
+\caption{Logical packet designs.}
+\label{tab:lg_pkt}
+\end{figure}
+
+\begin{figure}[h]
+\begin{tabular}{|l | l | l|}
+  \hline
+  1 byte & 4 bytes & up to 995 bytes\\
+  \hline
+  $f_{ACK}$, $f_{FIN}$, 0, \dots, 0 & seq & data\\
+  \hline
+\end{tabular}
+\caption{Physical packet designs.}
+\label{tab:py_pkt}
+\end{figure}
+
 \subsection{Timeouts}
-\subsection{Window}
+There is a user definable timeout before packets are considered lost.
+Since the receiver simply ignores corrupted packets, a full timeout period is required before resending corrupted packets.
+This design was chosen for its simplicity.
+When the sender does not receive an ACK packet for a TRN packet that it sent before timing out, it will resend the TRN packet.
+
+Corrupted ACK packets are ignored, meaning the sender will resend the TRN packet until it receives a corresponding ACK.
+
+\subsection{Window and selective repeat}
+A window is specified for both the client and the server.
+
+\subsubsection{Sending with a window}
+\begin{enumerate}
+\item The sender will send all of the packets that are not already acknowledged that are in the window.
+\item It will then collect all of the ACKs that the receiver responds with, marking off each TRN packet that is acknowledged.
+\item This collection ends with the first timeout of the packet receiving function.
+\item Then, it will shift up the window to the first unacknowledged packet, and loop back to sending all packets in the (possibly new) window that are not acknowledged.
+\end{enumerate}
+Please note that this technique only resends packets that an ACK has not yet been received for.
+
+\subsubsection{Receiving with a window}
+\begin{enumerate}
+\item The receiver will calculate an offset using the packet's sequence number and the maximum sequence number allowed.
+\item This offset is adjusted if the sequence number rolls over or if the window straddles the rollover point.
+\item The window is shifted up if the offset if greater than the window's maximum position.
+\item The buffer is grown if need be.
+\item The data is copied into the buffer.
+\item An ACK is sent using the sequence number of the TRN packet.
+\end{enumerate}
+
+\subsubsection{Finalizing the Connection}
+The sender sends a FIN packet when it is out of TRN packets to send.
+When the receiver gets the FIN packet, it sends a FINACK.
+The sender only attempts to send the FIN packet a finite number of times before assuming the connection is lost or closed.
+The receiver only sends the FINACK once before closing the connection.
 
 \section{Difficulties}
+% TODO eating old connection
+% TODO FIN completion
 
 \theendnotes
 
