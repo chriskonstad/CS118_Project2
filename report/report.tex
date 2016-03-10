@@ -134,8 +134,18 @@ The sender only attempts to send the FIN packet a finite number of times before 
 The receiver only sends the FINACK once before closing the connection.
 
 \section{Difficulties}
-% TODO eating old connection
-% TODO FIN completion
+One bug that took awhile to fix was when the server would switch from receiving to listening, it would receive the last FIN packets sent from the client that was trying to close the old connection.
+To fix this, the receiving code added a loop at the beginning that consumes any FIN packets before listening for TRN packets.
+Similarly, the sending code, if it receives a TRN packet instead of an ACK packet, will stop sending, letting the client quickly transition from sending to receiving.
+
+Another bug that took some time to fix was how to handle closing a connection.
+This was fixed by limiting the number of sending and receiving time outs allowed before a connection is considered closed.
+The problem with this is that a technically working connection may be closed when it only has a really high packet loss rate, but the limits are high enough that probabilistically speaking multiple packets will get through before that happens.
+Plus, receiving any packet, corrupted or not, resets the counters.
+
+The last hard bug to fix was calculating the total offset into the file a received packet's sequence number meant.
+When the window straddled the rollover point in the sequence numbers, the number of rollovers would be incorrectly tallied, causing a packet with a sequence number before the rollover point to be treated as a packet with an offset of its real offset plus another $CWnd$ length offset.
+This was fixed by adjusting the calculated offset if it was greater than $window.max + CWnd$.
 
 \theendnotes
 
